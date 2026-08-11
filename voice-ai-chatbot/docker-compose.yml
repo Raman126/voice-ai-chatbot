@@ -1,0 +1,33 @@
+version: "3.9"
+
+# Brings up the whole app with one command: `docker compose up --build`
+# Frontend (nginx) is the only exposed port; it proxies /api/* to the
+# backend container over the internal Docker network, so no CORS config
+# or public backend port is needed.
+
+services:
+  backend:
+    build:
+      context: ./backend
+    env_file:
+      - ./backend/.env
+    expose:
+      - "8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: /api
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
